@@ -1,24 +1,26 @@
 from flask import Flask, request, Response
-import openai
+from openai import OpenAI
 import requests
 import os
 
 app = Flask(__name__)
 
-# Load API keys from environment variables
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+# Initialize OpenAI client
+client = OpenAI()
+
+# Load environment variables
 elevenlabs_api_key = os.environ.get("ELEVENLABS_API_KEY")
 voice_id = os.environ.get("ELEVENLABS_VOICE_ID")
 
 def get_gpt_response(user_input):
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a confident and friendly car expert named Troy, the Capital Crusader. Always be helpful, no pressure."},
-            {"role": "user", "content": user_input},
+            {"role": "user", "content": user_input}
         ]
     )
-    return response["choices"][0]["message"]["content"]
+    return response.choices[0].message.content
 
 def get_elevenlabs_audio(text):
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
@@ -50,6 +52,9 @@ def voice():
 @app.route("/gather", methods=["POST"])
 def gather():
     from twilio.twiml.voice_response import VoiceResponse
+    import os
+
+    os.makedirs("static", exist_ok=True)
 
     user_input = request.form.get("SpeechResult", "No response")
     gpt_reply = get_gpt_response(user_input)
@@ -59,7 +64,7 @@ def gather():
         f.write(audio)
 
     resp = VoiceResponse()
-    resp.play("https://your-render-url.onrender.com/static/response.mp3")  # Replace this URL
+    resp.play("https://your-render-url.onrender.com/static/response.mp3")  # Replace with actual Render URL
     return Response(str(resp), mimetype='text/xml')
 
 @app.route("/")
